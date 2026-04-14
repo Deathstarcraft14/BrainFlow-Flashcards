@@ -1,0 +1,5 @@
+{
+  "name": "BrainFlow",
+  "description": "An Anki-inspired flashcard app with spaced repetition, folders, and self-grading study sessions.",
+  "requestFramePermissions": []
+}

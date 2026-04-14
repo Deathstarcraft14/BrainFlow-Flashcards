@@ -1,0 +1,121 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: decks
+    // Document ID: deckId
+    // Fields:
+    //   - id: string (required)
+    //   - userId: string (required, must match auth.uid)
+    //   - name: string (required, 1-100 chars)
+    //   - description: string (optional, 0-500 chars)
+    //   - createdAt: number (required)
+    //
+    // Collection: folders
+    // Document ID: folderId
+    // Fields:
+    //   - id: string (required)
+    //   - userId: string (required, must match auth.uid)
+    //   - deckId: string (required)
+    //   - name: string (required, 1-100 chars)
+    //   - createdAt: number (required)
+    //
+    // Collection: cards
+    // Document ID: cardId
+    // Fields:
+    //   - id: string (required)
+    //   - userId: string (required, must match auth.uid)
+    //   - deckId: string (required)
+    //   - folderId: string (optional)
+    //   - front: string (required, 1-5000 chars)
+    //   - back: string (required, 1-5000 chars)
+    //   - createdAt: number (required)
+    //   - state: string (required, enum: new, learning, review, relearning)
+    //   - nextReview: number (required)
+    //   - interval: number (required)
+    //   - easeFactor: number (required)
+    //   - step: number (required)
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function isValidString(val, min, max) {
+      return val is string && val.size() >= min && val.size() <= max;
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidDeck(data) {
+      return data.keys().hasAll(['id', 'userId', 'name', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             isValidString(data.name, 1, 100) &&
+             (!('description' in data) || data.description is string) &&
+             data.createdAt is number;
+    }
+
+    function isValidFolder(data) {
+      return data.keys().hasAll(['id', 'userId', 'deckId', 'name', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             isValidString(data.name, 1, 100) &&
+             data.deckId is string &&
+             data.createdAt is number;
+    }
+
+    function isValidCard(data) {
+      return data.keys().hasAll(['id', 'userId', 'deckId', 'front', 'back', 'createdAt', 'state', 'nextReview', 'interval', 'easeFactor', 'step']) &&
+             data.userId == request.auth.uid &&
+             isValidString(data.front, 1, 5000) &&
+             isValidString(data.back, 1, 5000) &&
+             data.state in ['new', 'learning', 'review', 'relearning'] &&
+             data.createdAt is number &&
+             data.nextReview is number &&
+             data.interval is number &&
+             data.easeFactor is number &&
+             data.step is number;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+    match /decks/{deckId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isAuthenticated() && isValidDeck(request.resource.data);
+      allow update: if isDocOwner() && isValidDeck(request.resource.data) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isDocOwner();
+    }
+
+    match /folders/{folderId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isAuthenticated() && isValidFolder(request.resource.data);
+      allow update: if isDocOwner() && isValidFolder(request.resource.data) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isDocOwner();
+    }
+
+    match /cards/{cardId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isAuthenticated() && isValidCard(request.resource.data);
+      allow update: if isDocOwner() && isValidCard(request.resource.data) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isDocOwner();
+    }
+
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "entities": {
+    "Deck": {
+      "title": "Deck",
+      "description": "A collection of flashcards",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "userId", "name", "createdAt"]
+    },
+    "Folder": {
+      "title": "Folder",
+      "description": "A sub-collection within a deck",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "deckId": { "type": "string" },
+        "name": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "userId", "deckId", "name", "createdAt"]
+    },
+    "Flashcard": {
+      "title": "Flashcard",
+      "description": "A single study card",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "deckId": { "type": "string" },
+        "folderId": { "type": "string" },
+        "front": { "type": "string" },
+        "back": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "state": { "type": "string", "enum": ["new", "learning", "review", "relearning"] },
+        "nextReview": { "type": "number" },
+        "interval": { "type": "number" },
+        "easeFactor": { "type": "number" },
+        "step": { "type": "number" }
+      },
+      "required": ["id", "userId", "deckId", "front", "back", "createdAt", "state", "nextReview"]
+    }
+  },
+  "firestore": {
+    "/decks/{deckId}": {
+      "schema": "Deck",
+      "description": "User decks"
+    },
+    "/folders/{folderId}": {
+      "schema": "Folder",
+      "description": "Folders within decks"
+    },
+    "/cards/{cardId}": {
+      "schema": "Flashcard",
+      "description": "Flashcards"
+    }
+  }
+}
