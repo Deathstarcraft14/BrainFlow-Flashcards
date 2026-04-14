@@ -4,6 +4,7 @@ export interface Flashcard {
   id: string;
   deckId: string;
   folderId: string | null;
+  type?: 'standard' | 'matching';
   front: string;
   back: string;
   createdAt: number;

@@ -67,6 +67,7 @@ export default function App() {
   const [studyCards, setStudyCards] = useState<Flashcard[]>([]);
   const [currentStudyIndex, setCurrentStudyIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [matchingSelections, setMatchingSelections] = useState<Record<string, string>>({});
 
   // Modal states
   const [isAddDeckOpen, setIsAddDeckOpen] = useState(false);
@@ -85,10 +86,12 @@ export default function App() {
   const [newFolderName, setNewFolderName] = useState('');
   const [newCardFront, setNewCardFront] = useState('');
   const [newCardBack, setNewCardBack] = useState('');
+  const [newCardType, setNewCardType] = useState<'standard' | 'matching'>('standard');
 
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const [editCardFront, setEditCardFront] = useState('');
   const [editCardBack, setEditCardBack] = useState('');
+  const [editCardType, setEditCardType] = useState<'standard' | 'matching'>('standard');
   const [editCardFolderId, setEditCardFolderId] = useState<string | null>(null);
 
   const selectedDeck = useMemo(() => 
@@ -221,6 +224,7 @@ export default function App() {
     setStudyCards(shuffled);
     setCurrentStudyIndex(0);
     setShowAnswer(false);
+    setMatchingSelections({});
     setIsStudyMode(true);
   };
 
@@ -232,6 +236,7 @@ export default function App() {
     if (currentStudyIndex < studyCards.length - 1) {
       setCurrentStudyIndex(prev => prev + 1);
       setShowAnswer(false);
+      setMatchingSelections({});
     } else {
       setIsStudyMode(false);
     }
@@ -253,7 +258,7 @@ export default function App() {
 
   const handleAddCard = () => {
     if (!newCardFront.trim() || !newCardBack.trim() || !selectedDeckId) return;
-    const card = getInitialCard(selectedDeckId, selectedFolderId, newCardFront, newCardBack);
+    const card = getInitialCard(selectedDeckId, selectedFolderId, newCardFront, newCardBack, newCardType);
     store.addCard(card);
     setNewCardFront('');
     setNewCardBack('');
@@ -267,7 +272,8 @@ export default function App() {
       ...store.cards.find(c => c.id === editingCardId)!,
       front: editCardFront,
       back: editCardBack,
-      folderId: editCardFolderId
+      folderId: editCardFolderId,
+      type: editCardType
     });
     setIsEditCardOpen(false);
     setEditingCardId(null);
@@ -278,6 +284,7 @@ export default function App() {
     setEditCardFront(card.front);
     setEditCardBack(card.back);
     setEditCardFolderId(card.folderId);
+    setEditCardType(card.type || 'standard');
     setIsEditCardOpen(true);
   };
 
@@ -319,19 +326,66 @@ export default function App() {
                     {getCardMaturity(currentCard)}
                   </Badge>
                 </div>
-                <div className="flex flex-col gap-6 w-full">
-                  <div className={cn(
-                    "text-2xl font-medium text-slate-800 transition-all duration-300 whitespace-pre-wrap",
-                    showAnswer ? "text-lg text-slate-500" : "text-2xl"
-                  )}>
-                    {currentCard.front}
-                  </div>
-                  {showAnswer && (
+                <div className="flex flex-col gap-6 w-full overflow-y-auto max-h-full py-4">
+                  {currentCard.type === 'matching' ? (
+                    <div className="space-y-4 text-left w-full">
+                      {currentCard.front.split('\n').filter(l => l.trim()).map((item, idx) => {
+                        const correctAnswers = currentCard.back.split('\n').filter(l => l.trim());
+                        const options = Array.from(new Set(correctAnswers)).sort();
+                        const isCorrect = matchingSelections[idx] === correctAnswers[idx];
+                        
+                        return (
+                          <div key={idx} className="flex items-center gap-4 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                            <span className="flex-1 font-medium text-slate-700">{item}</span>
+                            <div className="flex items-center gap-2">
+                              {!showAnswer ? (
+                                <select 
+                                  className="p-2 text-sm border rounded-md bg-white min-w-[120px]"
+                                  value={matchingSelections[idx] || ''}
+                                  onChange={(e) => setMatchingSelections(prev => ({ ...prev, [idx]: e.target.value }))}
+                                >
+                                  <option value="">Select...</option>
+                                  {options.map(opt => (
+                                    <option key={opt} value={opt}>{opt}</option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <div className="flex flex-col items-end">
+                                  <div className={cn(
+                                    "flex items-center gap-2 font-bold",
+                                    isCorrect ? "text-green-600" : "text-red-500"
+                                  )}>
+                                    {isCorrect ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                                    {matchingSelections[idx] || 'No selection'}
+                                  </div>
+                                  {!isCorrect && (
+                                    <div className="text-xs text-green-600 font-medium">
+                                      Correct: {correctAnswers[idx]}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
                     <>
-                      <Separator className="bg-slate-100" />
-                      <div className="text-2xl font-bold text-blue-600 animate-in fade-in slide-in-from-top-2 duration-300 whitespace-pre-wrap">
-                        {currentCard.back}
+                      <div className={cn(
+                        "text-2xl font-medium text-slate-800 transition-all duration-300 whitespace-pre-wrap",
+                        showAnswer ? "text-lg text-slate-500" : "text-2xl"
+                      )}>
+                        {currentCard.front}
                       </div>
+                      {showAnswer && (
+                        <>
+                          <Separator className="bg-slate-100" />
+                          <div className="text-2xl font-bold text-blue-600 animate-in fade-in slide-in-from-top-2 duration-300 whitespace-pre-wrap">
+                            {currentCard.back}
+                          </div>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
@@ -678,6 +732,11 @@ export default function App() {
                               <Badge variant="secondary" className="w-fit text-[10px] uppercase bg-blue-50 text-blue-700 border-blue-100">
                                 {getCardMaturity(card)}
                               </Badge>
+                              {card.type === 'matching' && (
+                                <Badge variant="secondary" className="w-fit text-[10px] uppercase bg-purple-50 text-purple-700 border-purple-100">
+                                  Matching
+                                </Badge>
+                              )}
                               {card.folderId && (
                                 <Badge variant="secondary" className="w-fit text-[10px] uppercase flex items-center gap-1">
                                   <FolderIcon className="w-2 h-2" />
@@ -776,6 +835,27 @@ export default function App() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
+              <label className="text-sm font-medium">Card Type</label>
+              <div className="flex gap-2">
+                <Button 
+                  variant={newCardType === 'standard' ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setNewCardType('standard')}
+                  className="flex-1"
+                >
+                  Standard
+                </Button>
+                <Button 
+                  variant={newCardType === 'matching' ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setNewCardType('matching')}
+                  className="flex-1"
+                >
+                  Matching
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2">
               <label className="text-sm font-medium">Folder (Optional)</label>
               <div className="flex flex-wrap gap-2">
                 <Button 
@@ -798,10 +878,10 @@ export default function App() {
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Front (Question)</label>
+              <label className="text-sm font-medium">Front {newCardType === 'matching' ? '(Items to match, one per line)' : '(Question)'}</label>
               <Textarea 
                 ref={frontInputRef}
-                placeholder="What is the capital of France?" 
+                placeholder={newCardType === 'matching' ? "Apple\nBanana\nCherry" : "What is the capital of France?"} 
                 value={newCardFront}
                 onChange={(e) => setNewCardFront(e.target.value)}
                 onKeyDown={(e) => {
@@ -814,9 +894,9 @@ export default function App() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Back (Answer)</label>
+              <label className="text-sm font-medium">Back {newCardType === 'matching' ? '(Correct matches, one per line)' : '(Answer)'}</label>
               <Textarea 
-                placeholder="Paris" 
+                placeholder={newCardType === 'matching' ? "Red\nYellow\nRed" : "Paris"} 
                 value={newCardBack}
                 onChange={(e) => setNewCardBack(e.target.value)}
                 onKeyDown={(e) => {
@@ -844,6 +924,27 @@ export default function App() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
+              <label className="text-sm font-medium">Card Type</label>
+              <div className="flex gap-2">
+                <Button 
+                  variant={editCardType === 'standard' ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setEditCardType('standard')}
+                  className="flex-1"
+                >
+                  Standard
+                </Button>
+                <Button 
+                  variant={editCardType === 'matching' ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setEditCardType('matching')}
+                  className="flex-1"
+                >
+                  Matching
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2">
               <label className="text-sm font-medium">Folder (Optional)</label>
               <div className="flex flex-wrap gap-2">
                 <Button 
@@ -866,18 +967,18 @@ export default function App() {
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Front (Question)</label>
+              <label className="text-sm font-medium">Front {editCardType === 'matching' ? '(Items to match, one per line)' : '(Question)'}</label>
               <Textarea 
-                placeholder="Question" 
+                placeholder={editCardType === 'matching' ? "Apple\nBanana\nCherry" : "Question"} 
                 value={editCardFront}
                 onChange={(e) => setEditCardFront(e.target.value)}
                 className="min-h-[100px]"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Back (Answer)</label>
+              <label className="text-sm font-medium">Back {editCardType === 'matching' ? '(Correct matches, one per line)' : '(Answer)'}</label>
               <Textarea 
-                placeholder="Answer" 
+                placeholder={editCardType === 'matching' ? "Red\nYellow\nRed" : "Answer"} 
                 value={editCardBack}
                 onChange={(e) => setEditCardBack(e.target.value)}
                 className="min-h-[80px]"

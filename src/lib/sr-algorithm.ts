@@ -91,11 +91,12 @@ export function getCardMaturity(card: Flashcard): 'New' | 'Learning' | 'Young' |
   return 'Mature';
 }
 
-export function getInitialCard(deckId: string, folderId: string | null, front: string, back: string): Flashcard {
+export function getInitialCard(deckId: string, folderId: string | null, front: string, back: string, type: 'standard' | 'matching' = 'standard'): Flashcard {
   return {
     id: crypto.randomUUID(),
     deckId,
     folderId,
+    type,
     front,
     back,
     createdAt: Date.now(),
